@@ -84,12 +84,18 @@ final class SyncEngine {
 
     let hostName = Host.current().localizedName ?? "Mac"
 
-    var enabled = true { didSet { onStateChange?() } }
+    var enabled = true {
+        didSet {
+            if enabled && !oldValue { restartRelayHandshake() }
+            onStateChange?()
+        }
+    }
 
     /// true(기본): 원격 데스크탑 뷰어 사용 중일 때만 동기화
     var onlyDuringRemote: Bool {
         didSet {
             UserDefaults.standard.set(onlyDuringRemote, forKey: Self.onlyRemoteDefaults)
+            if enabled && oldValue && !onlyDuringRemote { restartRelayHandshake() }
             onStateChange?()
         }
     }
@@ -337,6 +343,14 @@ final class SyncEngine {
     }
 
     // MARK: - 메시지 수신 (netQueue에서 호출)
+
+    private func restartRelayHandshake() {
+        netQueue.async {
+            for peerID in self.trustedOrigins {
+                self.announceRelayReadiness(to: peerID)
+            }
+        }
+    }
 
     private func handle(_ msg: SyncMessage, fromKey key: String) {
         guard TransportPolicy.acceptsIncoming(origin: msg.origin, connectionKey: key) else {

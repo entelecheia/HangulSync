@@ -132,6 +132,17 @@ final class SyncHandshakeTests: XCTestCase {
                                 enabled: [true, false]), ["ABC", "Korean"])
     }
 
+    func testReannouncingReadinessAfterSyncGateOpensConverges() {
+        // The first exchange was ignored by a paused peer or by remote-only
+        // mode without a viewer. Re-announcing from either resumed peer must
+        // recover the differing states without an input-source change.
+        for resumedPeer in [0, 1] {
+            XCTAssertEqual(exchange(initialSenders: [resumedPeer], viewers: [false, false],
+                                    onlyDuringRemote: false, enabled: [true, true]),
+                           ["ABC", "ABC"])
+        }
+    }
+
     /// Model the targeted ready/input exchange using the same response policy
     /// as SyncEngine. A missing first sender represents publication before the
     /// second subscription existed. A bounded queue catches reply loops.

@@ -63,7 +63,7 @@ The menu shows the number of paired Macs and lets you pause or resume syncing.
 
 ## Verification (2026-09-04)
 
-- 26 tests passed, including always-on mode, simultaneous starts, a lost readiness announcement, session gating and bounded replies.
+- 27 tests passed, including always-on mode, simultaneous starts, a lost readiness announcement, resuming sync, session gating and bounded replies.
 - A real ntfy.sh smoke test passed for temporary-identity pairing and encrypted messages.
 - The base relay-only build was exercised on two Macs for input-source sync, app restart and reconnect, and Jump Desktop reconnect.
 - The startup synchronization changes are covered by automated tests; this updated build has not yet been reinstalled and exercised on both Macs.
