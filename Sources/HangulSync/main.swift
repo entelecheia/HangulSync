@@ -346,7 +346,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         resetRow.edgeInsets = NSEdgeInsets(top: 0, left: cardPadding, bottom: 0, right: cardPadding)
         resetRow.addView(NSView(), in: .leading)
         resetRow.addView(resetButton, in: .trailing)
-        let pairingCard = makeCard([manualRow, automaticRow, helpRow, resetRow], gap: 8)
+        let pairingRows: [NSView] = TransportPolicy.directNetworkingEnabled
+            ? [manualRow, automaticRow, helpRow, resetRow]
+            : [manualRow, resetRow]
+        let pairingCard = makeCard(pairingRows, gap: 8)
 
         // 푸터: 버전 · GitHub · dongri.me
         func linkButton(_ title: String, action: Selector) -> NSButton {
@@ -663,7 +666,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     @objc private func openGitHub() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/catgarret/HangulSync")!)
+        NSWorkspace.shared.open(URL(string: "https://github.com/entelecheia/HangulSync")!)
     }
 
     @objc private func openHomepage() {

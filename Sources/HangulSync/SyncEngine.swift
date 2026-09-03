@@ -181,9 +181,11 @@ final class SyncEngine {
         recountPeers()
         observeLocalChanges()
         observeViewerApps()
-        startListener()
-        startBonjourBrowser()
-        netQueue.async { self.connectSavedTailscalePeers() }
+        if TransportPolicy.directNetworkingEnabled {
+            startListener()
+            startBonjourBrowser()
+            netQueue.async { self.connectSavedTailscalePeers() }
+        }
         startTimer()
     }
 
@@ -277,6 +279,10 @@ final class SyncEngine {
     // MARK: - 메시지 수신 (netQueue에서 호출)
 
     private func handle(_ msg: SyncMessage, fromKey key: String) {
+        guard TransportPolicy.acceptsIncoming(origin: msg.origin, connectionKey: key) else {
+            connections[key]?.cancel()
+            return
+        }
         guard msg.origin != instanceID else { return }
         if msg.kind == .hello {
             guard let publicKey = msg.publicKey,
@@ -368,7 +374,9 @@ final class SyncEngine {
             for key in waitingTailscaleKeys {
                 self.connections.removeValue(forKey: key)?.cancel()
             }
-            self.runTailscaleDiscovery(includeOfflineMacs: true)
+            if TransportPolicy.directNetworkingEnabled {
+                self.runTailscaleDiscovery(includeOfflineMacs: true)
+            }
             self.push(
                 SyncMessage(
                     origin: self.instanceID,
@@ -614,8 +622,10 @@ final class SyncEngine {
         let tick: () -> Void = { [weak self] in
             guard let self else { return }
             self.updateViewerState() // 뷰어 실행 상태 안전망 재확인
-            self.pollTailscale()
-            self.netQueue.async { self.connectBonjourPeers() }
+            if TransportPolicy.directNetworkingEnabled {
+                self.pollTailscale()
+                self.netQueue.async { self.connectBonjourPeers() }
+            }
             // 세션 신호 유지 재전송
             if self.localViewerActive,
                Date().timeIntervalSince(self.lastSessionBroadcast) > Self.sessionRefresh {
