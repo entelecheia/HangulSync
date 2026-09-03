@@ -1,92 +1,55 @@
-<p align="center">
-  <img src="assets/icon-256.png" width="128" alt="HangulSync">
-</p>
+# HangulSync
 
-<h1 align="center">HangulSync</h1>
+![HangulSync](assets/icon-256.png)
 
-**한국어** | [English](docs/README.en.md) | [日本語](docs/README.ja.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [ไทย](docs/README.th.md) | [Русский](docs/README.ru.md) | [Italiano](docs/README.it.md)
+[English](docs/README.en.md) · [포크 저장소](https://github.com/entelecheia/HangulSync) · [upstream](https://github.com/catgarret/HangulSync)
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-HangulSync는 원격 데스크탑 사용 중 발생하는 한글 자소 분리
-(`ㅎㅏㄴㄱㅡㄹ`)를 줄이는 macOS 메뉴바 앱입니다.
+HangulSync는 원격 데스크탑에서 한글 자소 분리(`ㅎㅏㄴㄱㅡㄹ`)를 줄이는 macOS 메뉴바 앱입니다. 두 Mac의 선택된 입력 소스를 동기화합니다.
 
-로컬 Mac과 원격 Mac의 한·영 입력 상태를 동기화합니다.
-같은 네트워크에서는 Bonjour로 서로를 찾고,
-다른 네트워크에서는 Tailscale을 사용할 수 있습니다.
+이 저장소는 [catgarret/HangulSync](https://github.com/catgarret/HangulSync)의 relay-only fork입니다. 이 fork는 직접 연결을 사용하지 않고, 명시적인 초대와 ntfy.sh 종단간 암호화 릴레이로 페어링하고 동기화합니다.
 
-## 왜 필요한가요?
+`docs/README.*.md`의 다른 언어 파일은 upstream의 legacy 문서입니다. 직접 연결 방식 등 upstream 동작을 설명할 수 있으므로 이 fork의 사용법으로 보지 마세요.
 
-원격 데스크탑을 사용할 때 두 Mac의 입력 소스가 서로 달라질 수 있습니다.
-로컬 Mac은 한글이고 원격 Mac은 영문이면 자소가 분리될 수 있습니다.
-반대 상황에서는 입력 대신 Command 단축키가 실행될 수 있습니다.
-HangulSync는 두 Mac의 입력 소스를 맞춰 이런 문제를 줄입니다.
+## 동작 방식
 
-## 기능
+- 입력 소스 변경을 양방향으로 전달합니다.
+- 상대 Mac에 같은 입력 소스가 있으면 그대로 선택하고, 없으면 같은 언어의 입력 소스로 대체합니다.
+- 모든 직접 TCP 연결을 비활성화했습니다. Bonjour 및 Tailscale 탐지와 재연결도 사용하지 않으며, 자동 탐지 컨트롤은 UI에 표시되지 않습니다.
+- 페어링과 동기화는 `https://ntfy.sh` 릴레이를 통해 이루어집니다. 페이로드는 두 Mac 사이에서 종단간 암호화됩니다.
+- 이 방식에는 인터넷 연결과 ntfy.sh 가용성이 필요합니다. 지연 시간은 네트워크 상태에 따라 달라집니다. ntfy.sh는 연결, 타이밍, 토픽, 암호문 관련 메타데이터를 볼 수 있습니다.
+- 앱의 기기 identity 키는 macOS 로그인 Keychain에 저장합니다.
 
-- **실시간 양방향 동기화**
-  한·영 전환이 즉시 전파
-- **자동 탐지**
-  - 같은 네트워크: **Bonjour** 자동 탐지 (근거리에서는 AWDL P2P Wi-Fi 포함)
-  - 다른 네트워크:
-    **[Tailscale](https://tailscale.com)**이 켜져 있으면
-    같은 tailnet의 피어를 30초마다 탐지
-- **언어 기준 대체**
-  상대 Mac에 같은 입력기가 없으면 언어가 같은 입력기를 사용
-- **루프 방지**
-  원격에서 적용된 변경은 재전파되지 않음
-- **가볍게 상주**
-  메뉴바에서 제어, Dock 아이콘 표시/숨김 선택 가능, 로그인 시 자동 실행 지원
-- **다국어 UI**
-  한국어, English, 日本語, 简体中文, 繁體中文, ไทย, Русский, Italiano
-- **원격 접속 중에만 작동**
-  Jump Desktop, 화면 공유, Screens, TeamViewer, AnyDesk, RustDesk 등
-  원격 데스크탑 앱이 실행 중일 때만 동기화.
-  메뉴에서 항상 켜기로 변경 가능
-- **연결 승인**
-  새 직접 연결은 사용자가 승인한 뒤에만 입력 상태를 주고받음
-- **암호화된 인터넷 릴레이**
-  페어링된 Mac은 직접 연결이 없을 때 ntfy를 통해 종단간 암호화된 상태를 주고받음
+## 설치
 
-## 설치 (두 Mac 모두)
-
-> 빌드 없이 사용하려면
-> [Releases](https://github.com/catgarret/HangulSync/releases/latest)에서
-> 최신 `HangulSync.zip`을 받아 `/Applications`에 넣으세요.
-> 첫 실행 시 앱을 우클릭한 뒤 **열기**를 선택하세요.
-
-빌드된 `HangulSync.app`을 복사해도 됩니다.
+이 fork에는 아직 내려받을 수 있는 릴리스가 없습니다. [포크 Releases 페이지](https://github.com/entelecheia/HangulSync/releases)는 향후 패키지를 위한 곳이며, 현재는 두 Mac에서 소스에서 빌드해 설치합니다.
 
 ```bash
-git clone https://github.com/catgarret/HangulSync.git
+git clone https://github.com/entelecheia/HangulSync.git
 cd HangulSync
 ./install.sh
 ```
 
-Xcode Command Line Tools 필요 (`xcode-select --install`).
+macOS 13 이상과 Xcode Command Line Tools가 필요합니다 (`xcode-select --install`). 이 fork는 직접 네트워크를 사용하지 않으므로 로컬 네트워크 권한을 허용할 필요가 없습니다.
 
-1. 첫 실행 시 **로컬 네트워크 접근 허용** 팝업에서 반드시 **허용**
-2. 메뉴바 `⇄한` / `⇄A` 아이콘 클릭 → **로그인 시 자동 실행** 체크
+## 첫 페어링
 
-## 첫 페어링과 Keychain 안내
+자동 탐지는 제공하지 않습니다. 초기 동기화 프로토콜을 함께 사용하도록 두 Mac 모두 같은 fork 버전으로 설치한 뒤 초대 코드로 페어링하세요.
 
-1. 두 Mac에서 HangulSync를 실행합니다.
-2. 두 Mac 중 **한쪽에서만 자동으로 찾기**를 누릅니다.
-   다른 Mac에서는 버튼을 누르거나 창을 열 필요 없이 앱만 실행해 두면 됩니다.
-3. 찾는 Mac에는 진행 상태가 표시되고,
-   다른 Mac에는 연결 승인창이 자동으로 나타납니다.
-4. 자동으로 찾지 못하면 어느 한쪽에서 **초대 코드 만들기**를 누릅니다.
-   자동 복사된 코드를 2분 안에 다른 Mac의 **초대 코드 입력**에 붙여 넣습니다.
-5. 양쪽에 표시된 6자리 코드가 같은지 확인한 뒤 양쪽에서 **승인**합니다.
-   **이 기기를 계속 신뢰**를 켜면 이후에는 다시 확인하지 않습니다.
-   다음 실행부터는 두 Mac에서 앱만 켜면 자동으로 다시 연결됩니다.
-6. macOS가 로그인 Keychain 접근을 요청하면 앱 이름이 HangulSync인지 확인합니다.
-   현재 Mac 로그인 암호를 입력하고 **항상 허용** 또는 **허용**을 선택합니다.
+1. 한쪽 Mac에서 **초대 코드 만들기**를 누르고 코드를 복사합니다.
+2. 다른 Mac에서 **초대 코드 입력**을 누르고 2분 안에 코드를 붙여 넣습니다.
+3. 양쪽에 같은 6자리 확인 코드가 표시되는지 확인하고 양쪽에서 **승인**합니다.
+4. 이후 자동 재연결을 원하면 **이 기기를 계속 신뢰**를 켭니다.
+5. 두 Mac의 설정에서 **로그인 시 자동 실행**을 켜면 로그인 후 앱이 자동으로 시작됩니다.
 
-암호는 HangulSync 화면에 입력하는 것이 아니라 macOS Keychain 창에만 입력합니다.
-취소하면 보안 페어링과 인터넷 릴레이가 작동하지 않습니다.
+초대 코드를 붙여 넣은 뒤 페어링 메시지는 ntfy.sh를 통해 전달되며, 두 Mac 사이에서 암호화됩니다. macOS가 Keychain 접근을 요청하면 앱 이름이 HangulSync인지 확인하고 시스템 대화상자에서만 로그인 암호를 입력하세요. HangulSync 창에는 암호를 입력하지 않습니다.
+
+## 원격 세션 옵션
+
+**원격 접속 중에만 동기화**는 기본으로 켜져 있습니다. 이 옵션은 Jump Desktop, 화면 공유, Screens, TeamViewer, AnyDesk, RustDesk 등 지원되는 원격 데스크탑 뷰어 앱이 실행 중이면 동기화를 허용합니다. 실제 원격 연결 여부나 해당 앱이 전면(frontmost)인지 여부는 확인하지 않습니다. 항상 동기화하려면 이 옵션을 끄세요.
 
 ## 메뉴바 아이콘
 
@@ -94,12 +57,18 @@ Xcode Command Line Tools 필요 (`xcode-select --install`).
 |---|---|
 | `⇄한` / `⇄A` | 동기화 중 (현재 입력: 한글/영문) |
 | `⏸한` / `⏸A` | 일시정지 |
-| 흐린 아이콘 | 대기 중 (원격 세션 없음) |
+| 흐린 아이콘 | 대기 중 (원격 데스크탑 뷰어 앱이 실행되지 않음) |
 
-메뉴에서 연결된 Mac 수를 확인할 수 있습니다.
-동기화 일시정지와 재개, 원격 앱 실행 중에만 동기화,
-로그인 시 자동 실행, 앱 종료를 설정할 수 있습니다.
+메뉴에서 페어링된 Mac 수를 확인하고 동기화를 일시정지하거나 재개할 수 있습니다.
+
+## 검증한 범위 (2026-09-04)
+
+- 테스트 27개 통과. 항상 동기화 모드, 동시 시작, 준비 알림 유실, 일시정지 해제, 세션별 동기화 조건과 응답 루프 방지 포함
+- 실제 ntfy.sh를 사용한 임시 identity 페어링 및 암호화 메시지 smoke test 통과
+- 기본 relay-only 보완본에서 두 Mac 입력 소스 동기화, 앱 재시작 후 재연결, Jump Desktop 재연결 확인
+- 초기 동기화 프로토콜 보완은 자동 테스트로 검증했으며, 두 Mac에 재설치한 검증은 아직 수행하지 않음
+- 물리 키보드 한글 조합은 확인하지 않음. 합성 ASCII 입력을 UI 자동화하는 동안 입력 소스가 바뀌어 이 시나리오의 결과를 신뢰하기 어렵습니다.
 
 ## 라이선스
 
-MIT © [dongri.me](https://dongri.me/) · AI 바이브코딩으로 만들었습니다.
+MIT © [dongri.me](https://dongri.me/). 이 fork는 [catgarret/HangulSync](https://github.com/catgarret/HangulSync)의 upstream MIT 라이선스를 유지합니다.

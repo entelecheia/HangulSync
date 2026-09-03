@@ -1,94 +1,55 @@
-<p align="center">
-  <img src="../assets/icon-256.png" width="128" alt="HangulSync">
-</p>
+# HangulSync
 
-<h1 align="center">HangulSync</h1>
+![HangulSync](../assets/icon-256.png)
 
-[한국어](../README.md) | **English** | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [ไทย](README.th.md) | [Русский](README.ru.md) | [Italiano](README.it.md)
+[한국어](../README.md) · [Fork repository](https://github.com/entelecheia/HangulSync) · [upstream](https://github.com/catgarret/HangulSync)
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-HangulSync is a macOS menu bar app that reduces separated Hangul jamo
-(`ㅎㅏㄴㄱㅡㄹ`) while using remote desktop software.
+HangulSync is a macOS menu bar app that reduces separated Hangul jamo (`ㅎㅏㄴㄱㅡㄹ`) during remote desktop use. It keeps the selected input source aligned between two Macs.
 
-It keeps the Korean and English input states aligned between two Macs.
-Bonjour handles discovery on the same network.
-Tailscale can be used across different networks.
+This repository is a relay-only fork of [catgarret/HangulSync](https://github.com/catgarret/HangulSync). It does not use direct connections; pairing and sync use explicit invitations and an end-to-end encrypted ntfy.sh relay.
 
-## Why?
+The other language files under `docs/` are legacy upstream documentation. They may describe upstream direct networking, so use this guide for the fork's current behavior.
 
-The local and remote input sources can differ during a remote desktop session.
-This may produce separated jamo when one Mac uses Korean and the other uses
-English.
-In the opposite state, a keystroke may trigger a Command shortcut instead of
-entering text.
-HangulSync reduces these problems by keeping the input sources aligned.
+## How it works
 
-## Features
-
-- **Real-time sync**
-  input source changes propagate instantly in both directions
-- **Automatic discovery**
-  - Same network: discovered via **Bonjour** (including AWDL peer-to-peer Wi-Fi when nearby)
-  - Different networks:
-    when **[Tailscale](https://tailscale.com)** is running,
-    peers on the same tailnet are checked every 30 seconds
-- **Language fallback**
-  uses an input method for the same language when the exact input method is unavailable
-- **Loop-safe**
-  remote-applied changes are never re-broadcast
-- **Lightweight**
-  controlled from the menu bar, optional Dock icon, launch-at-login support
-- **Localized UI**
-  English, 한국어, 日本語, 简体中文, 繁體中文, ไทย, Русский, Italiano
-- **Active only during remote sessions**
-  syncs while a remote desktop viewer such as Jump Desktop, Screen Sharing,
-  Screens, TeamViewer, AnyDesk, or RustDesk is running.
-  Always-on mode is available from the menu
-- **Connection approval**
-  a new direct connection exchanges input state only after user approval
-- **Encrypted internet relay**
-  paired Macs use ntfy with end-to-end encryption when no direct connection is available
+- Input source changes are relayed in both directions.
+- If the other Mac has the exact same input source, HangulSync selects it. Otherwise it falls back to an input source in the same language.
+- All direct TCP networking is disabled. Bonjour and Tailscale discovery and reconnect are also disabled, and automatic discovery controls are hidden from the UI.
+- Pairing and sync use the `https://ntfy.sh` relay. Payloads are end-to-end encrypted between the two Macs.
+- This requires internet access and an available ntfy.sh service. Latency depends on the network. ntfy.sh can still see connection, timing, topic, and ciphertext metadata.
+- The app stores its own device identity key in the macOS login Keychain.
 
 ## Install
 
-> To install without building, download the latest `HangulSync.zip` from
-> [Releases](https://github.com/catgarret/HangulSync/releases/latest)
-> and move it to `/Applications`.
-> On first launch, right-click the app and select **Open**.
-
-Do this on **both** Macs (a built `HangulSync.app` can also just be copied over):
+This fork has no downloadable release yet. See the [fork Releases page](https://github.com/entelecheia/HangulSync/releases) for future packages; for now, build and install from source on both Macs:
 
 ```bash
-git clone https://github.com/catgarret/HangulSync.git
+git clone https://github.com/entelecheia/HangulSync.git
 cd HangulSync
 ./install.sh
 ```
 
-Requires Xcode Command Line Tools (`xcode-select --install`).
+Requires macOS 13 or later and Xcode Command Line Tools (`xcode-select --install`). This fork does not use direct networking, so no Local Network permission is needed.
 
-1. On first launch, **allow Local Network access** when prompted.
-2. Click the `⇄한` / `⇄A` menu bar icon → enable **Launch at Login**.
+## Pair the Macs
 
-## First pairing and Keychain prompt
+Automatic discovery is not available in this fork. Install the same fork version on both Macs so they share the startup synchronization protocol, then pair them with an invite:
 
-1. Run HangulSync on both Macs.
-2. Click **Find Automatically** on **only one Mac**.
-   On the other Mac, just leave HangulSync running; do not click a button or keep a window open.
-3. The searching Mac shows progress,
-   and a connection approval appears automatically on the other Mac.
-4. If discovery fails, select **Create Invite** on either Mac.
-   Paste the copied invite into **Enter Invite** on the other Mac within two minutes.
-5. Confirm that both Macs show the same six-digit code, then approve on both.
-   Keep **Always trust this device** enabled to skip confirmation in the future.
-   On later launches, the two apps reconnect automatically with no button presses.
-6. If macOS requests access to the login Keychain, verify that the app is HangulSync.
-   Enter the current Mac login password and select **Always Allow** or **Allow**.
+1. On one Mac, click **Create Invite** and copy the code.
+2. On the other Mac, click **Enter Invite** and paste it within two minutes.
+3. Confirm that both Macs show the same six-digit confirmation code, then click **Approve** on both.
+4. Enable **Always trust this device** if you want automatic reconnects later.
+5. Enable **Launch at Login** in settings on both Macs to start the app after login.
 
-Enter the password only in the macOS Keychain dialog, never in a HangulSync window.
-Cancelling the prompt prevents secure pairing and the internet relay from working.
+After you paste the invite, pairing messages pass through ntfy.sh and are encrypted between the two Macs. If macOS requests Keychain access, confirm that the app is HangulSync and enter your login password only in the system dialog, never in a HangulSync window.
+
+## Remote session option
+
+**Sync Only During Remote Sessions** is enabled by default. It allows sync when a supported remote desktop viewer app is running, such as Jump Desktop, Screen Sharing, Screens, TeamViewer, AnyDesk, or RustDesk. It does not check whether a remote connection is currently established or whether the viewer is frontmost. Turn it off for always-on syncing.
 
 ## Menu bar
 
@@ -96,11 +57,18 @@ Cancelling the prompt prevents secure pairing and the internet relay from workin
 |---|---|
 | `⇄한` / `⇄A` | Syncing (current input: Korean / English) |
 | `⏸한` / `⏸A` | Paused |
-| Dimmed icon | Standby (no remote session) |
+| Dimmed icon | Standby (no supported remote desktop viewer is running) |
 
-The menu shows the number of connected Macs and lets you pause/resume, toggle launch-at-login,
-or quit.
+The menu shows the number of paired Macs and lets you pause or resume syncing.
+
+## Verification (2026-09-04)
+
+- 27 tests passed, including always-on mode, simultaneous starts, a lost readiness announcement, resuming sync, session gating and bounded replies.
+- A real ntfy.sh smoke test passed for temporary-identity pairing and encrypted messages.
+- The base relay-only build was exercised on two Macs for input-source sync, app restart and reconnect, and Jump Desktop reconnect.
+- The startup synchronization changes are covered by automated tests; this updated build has not yet been reinstalled and exercised on both Macs.
+- Physical-keyboard Hangul composition was not verified. UI automation changes the input source during synthetic ASCII typing, so that result would not be reliable.
 
 ## License
 
-MIT © [dongri.me](https://dongri.me/) · Built with AI vibe coding.
+MIT © [dongri.me](https://dongri.me/). This fork retains the upstream MIT license from [catgarret/HangulSync](https://github.com/catgarret/HangulSync).

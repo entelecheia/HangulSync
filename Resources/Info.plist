@@ -7,7 +7,7 @@
     <key>CFBundleName</key>
     <string>HangulSync</string>
     <key>CFBundleDisplayName</key>
-    <string>HangulSync</string>
+    <string>HangulSync Relay</string>
     <key>CFBundleExecutable</key>
     <string>HangulSync</string>
     <key>CFBundleIconFile</key>
@@ -22,11 +22,7 @@
     <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>같은 네트워크에 있는 다른 Mac의 HangulSync와 한/영 입력 상태를 동기화하기 위해 로컬 네트워크 접근이 필요합니다.</string>
-    <key>NSBonjourServices</key>
-    <array>
-        <string>_hangulsync._tcp</string>
-    </array>
+    <key>HangulSyncRelayOnly</key>
+    <true/>
 </dict>
 </plist>
