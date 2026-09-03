@@ -37,7 +37,7 @@ Requires macOS 13 or later and Xcode Command Line Tools (`xcode-select --install
 
 ## Pair the Macs
 
-Automatic discovery is not available in this fork. Run the app on both Macs, then pair them with an invite:
+Automatic discovery is not available in this fork. Install the same fork version on both Macs so they share the startup synchronization protocol, then pair them with an invite:
 
 1. On one Mac, click **Create Invite** and copy the code.
 2. On the other Mac, click **Enter Invite** and paste it within two minutes.
@@ -63,9 +63,10 @@ The menu shows the number of paired Macs and lets you pause or resume syncing.
 
 ## Verification (2026-09-04)
 
-- 16 tests passed.
+- 26 tests passed, including always-on mode, simultaneous starts, a lost readiness announcement, session gating and bounded replies.
 - A real ntfy.sh smoke test passed for temporary-identity pairing and encrypted messages.
-- Two-Mac input-source sync, app restart and reconnect, and Jump Desktop reconnect passed.
+- The base relay-only build was exercised on two Macs for input-source sync, app restart and reconnect, and Jump Desktop reconnect.
+- The startup synchronization changes are covered by automated tests; this updated build has not yet been reinstalled and exercised on both Macs.
 - Physical-keyboard Hangul composition was not verified. UI automation changes the input source during synthetic ASCII typing, so that result would not be reliable.
 
 ## License

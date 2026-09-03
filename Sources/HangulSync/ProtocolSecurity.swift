@@ -5,6 +5,7 @@ enum SyncMessageKind: String, Codable {
     case session
     case pair
     case hello
+    case ready
 }
 
 /// Newline-delimited JSON message used on direct connections.
@@ -55,7 +56,9 @@ enum ProtocolSecurity {
                 && message.sessionActive == nil && message.relayKey == nil
         case .input:
             return message.sourceID != nil
-                && message.sessionActive == nil && message.relayKey == nil
+                // `sessionActive`, when present, is the sender's session state
+                // attached to a snapshot so an input cannot outrun its session packet.
+                && message.relayKey == nil
                 && message.name == nil && message.publicKey == nil
                 && message.pairingRequest == nil
         case .session:
@@ -67,6 +70,11 @@ enum ProtocolSecurity {
             return message.relayKey != nil
                 && message.sourceID == nil && message.isKorean == nil
                 && message.sessionActive == nil && message.name == nil
+                && message.publicKey == nil && message.pairingRequest == nil
+        case .ready:
+            return message.sessionActive != nil
+                && message.sourceID == nil && message.isKorean == nil
+                && message.relayKey == nil && message.name == nil
                 && message.publicKey == nil && message.pairingRequest == nil
         }
     }

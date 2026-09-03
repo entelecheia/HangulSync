@@ -63,6 +63,9 @@ enum EndToEndSmoke {
         }
         let firstRelay = RelayChannel(localID: firstIdentity.deviceID)
         let secondRelay = RelayChannel(localID: secondIdentity.deviceID)
+        let subscriptionsReady = DispatchSemaphore(value: 0)
+        firstRelay.onSubscriptionReady = { _ in subscriptionsReady.signal() }
+        secondRelay.onSubscriptionReady = { _ in subscriptionsReady.signal() }
         let relayDone = DispatchSemaphore(value: 0)
         secondRelay.onMessage = { message, peerID in
             guard peerID == firstIdentity.deviceID,
@@ -74,13 +77,17 @@ enum EndToEndSmoke {
         firstRelay.configure(peerID: secondIdentity.deviceID, sharedSecret: firstSecret)
         secondRelay.configure(peerID: firstIdentity.deviceID, sharedSecret: secondSecret)
 
-        Thread.sleep(forTimeInterval: 1.5)
+        guard subscriptionsReady.wait(timeout: .now() + 15) == .success,
+              subscriptionsReady.wait(timeout: .now() + 15) == .success else {
+            fatalError("RELAY_SUBSCRIPTION_NOT_READY")
+        }
         firstRelay.publish(
             SyncMessage(
                 origin: firstIdentity.deviceID,
                 kind: .input,
                 sourceID: "com.apple.keylayout.ABC",
-                isKorean: false
+                isKorean: false,
+                sessionActive: true
             )
         )
         guard relayDone.wait(timeout: .now() + 15) == .success else {

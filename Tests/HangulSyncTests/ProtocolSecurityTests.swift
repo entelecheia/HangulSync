@@ -65,8 +65,23 @@ final class ProtocolSecurityTests: XCTestCase {
         ))
     }
 
+    func testReadyAndInputSnapshotsMayCarrySessionState() {
+        XCTAssertTrue(ProtocolSecurity.validate(
+            SyncMessage(origin: "peer", kind: .ready, sessionActive: true)
+        ))
+        XCTAssertTrue(ProtocolSecurity.validate(
+            SyncMessage(
+                origin: "peer",
+                kind: .input,
+                sourceID: "com.apple.keylayout.ABC",
+                isKorean: false,
+                sessionActive: true
+            )
+        ))
+    }
+
     func testPausedAndUntrustedStateChangingMessagesAreRejected() {
-        for kind in [SyncMessageKind.input, .session, .pair] {
+        for kind in [SyncMessageKind.input, .session, .pair, .ready] {
             XCTAssertFalse(ProtocolSecurity.permits(
                 kind, enabled: false, trusted: true, pairingMode: true
             ))

@@ -42,6 +42,7 @@ struct RelayKeyMaterial {
 /// Pairwise end-to-end encrypted ntfy transport.
 final class RelayChannel: NSObject, URLSessionDataDelegate {
     var onMessage: ((SyncMessage, String) -> Void)?
+    var onSubscriptionReady: ((String) -> Void)?
 
     private struct Peer {
         let id: String
@@ -49,6 +50,7 @@ final class RelayChannel: NSObject, URLSessionDataDelegate {
         let key: SymmetricKey
         var sequence: UInt64 = 0
         var task: URLSessionDataTask?
+        var subscriptionReady = false
         var buffer = Data()
         var receivedSequences: [String: UInt64] = [:]
     }
@@ -102,7 +104,7 @@ final class RelayChannel: NSObject, URLSessionDataDelegate {
         task?.cancel()
     }
 
-    private func publish(_ message: SyncMessage, to peerID: String) {
+    func publish(_ message: SyncMessage, to peerID: String) {
         lock.lock()
         guard var peer = peers[peerID] else { lock.unlock(); return }
         peer.sequence &+= 1
@@ -143,6 +145,7 @@ final class RelayChannel: NSObject, URLSessionDataDelegate {
         request.setValue("no", forHTTPHeaderField: "X-Firebase")
         let task = session.dataTask(with: request)
         lock.lock()
+        peers[peerID]?.subscriptionReady = false
         peers[peerID]?.task = task
         peerByTaskID[task.taskIdentifier] = peerID
         lock.unlock()
@@ -161,12 +164,21 @@ final class RelayChannel: NSObject, URLSessionDataDelegate {
             return
         }
         var messages: [SyncMessage] = []
+        var becameReady = false
         while let newline = peer.buffer.firstIndex(of: 0x0A) {
             let line = Data(peer.buffer.prefix(upTo: newline))
             peer.buffer = Data(peer.buffer.suffix(from: peer.buffer.index(after: newline)))
             guard line.count <= ProtocolSecurity.maxMessageBytes * 2,
-                  let event = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-                  event["event"] as? String == "message",
+                  let event = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
+            else { continue }
+            if event["event"] as? String == "open" {
+                if !peer.subscriptionReady {
+                    peer.subscriptionReady = true
+                    becameReady = true
+                }
+                continue
+            }
+            guard event["event"] as? String == "message",
                   let text = event["message"] as? String,
                   let cipherData = text.data(using: .utf8),
                   let wrapper = try? JSONDecoder().decode(RelayCiphertext.self, from: cipherData),
@@ -188,6 +200,7 @@ final class RelayChannel: NSObject, URLSessionDataDelegate {
         }
         peers[peerID] = peer
         lock.unlock()
+        if becameReady { onSubscriptionReady?(peerID) }
         for message in messages { onMessage?(message, peerID) }
     }
 

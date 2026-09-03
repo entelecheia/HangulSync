@@ -96,11 +96,16 @@ final class SyncEngine {
 
     /// 지금 동기화가 실제로 동작하는 상태인가
     var syncAllowed: Bool {
-        guard enabled else { return false }
-        guard onlyDuringRemote else { return true }
-        if localViewerActive { return true }
         let now = Date()
-        return remoteActive.values.contains { now.timeIntervalSince($0) < Self.sessionTTL }
+        let remoteSessionActive = remoteActive.values.contains {
+            now.timeIntervalSince($0) < Self.sessionTTL
+        }
+        return SyncHandshakePolicy.allowsIncomingInput(
+            enabled: enabled,
+            onlyDuringRemote: onlyDuringRemote,
+            localViewerActive: localViewerActive,
+            remoteSessionActive: remoteSessionActive
+        )
     }
 
     /// UI 갱신 콜백 (메인 스레드에서 호출됨)
@@ -140,9 +145,17 @@ final class SyncEngine {
 
     func start() {
         lastKnownID = InputSourceManager.current()?.id
+        // Initial snapshots are negotiated after subscription readiness. Avoid
+        // the viewer observer broadcasting an uncoordinated startup snapshot.
+        localViewerActive = NSWorkspace.shared.runningApplications.contains { Self.isViewer($0) }
         relay.onMessage = { [weak self] message, peerID in
             self?.netQueue.async {
                 self?.handle(message, fromKey: "relay-\(peerID)")
+            }
+        }
+        relay.onSubscriptionReady = { [weak self] peerID in
+            self?.netQueue.async {
+                self?.announceRelayReadiness(to: peerID)
             }
         }
         rendezvous.onPeer = { [weak self] publicKey, name, remoteApproved in
@@ -252,11 +265,29 @@ final class SyncEngine {
 
     private func send(input state: InputSourceManager.State) {
         push(SyncMessage(origin: instanceID, kind: .input,
-                         sourceID: state.id, isKorean: state.isKorean))
+                         sourceID: state.id, isKorean: state.isKorean,
+                         sessionActive: localViewerActive))
     }
 
     private func send(session active: Bool) {
         push(SyncMessage(origin: instanceID, kind: .session, sessionActive: active))
+    }
+
+    private func sendInitialState(
+        to peerID: String,
+        viewerActive: Bool,
+        state: InputSourceManager.State
+    ) {
+        push(
+            SyncMessage(
+                origin: instanceID,
+                kind: .input,
+                sourceID: state.id,
+                isKorean: state.isKorean,
+                sessionActive: viewerActive
+            ),
+            to: peerID
+        )
     }
 
     private func push(_ msg: SyncMessage, requiresTrust: Bool = true) {
@@ -272,6 +303,35 @@ final class SyncEngine {
             }
             if requiresTrust {
                 self.relay.publish(msg, excluding: directPeerIDs)
+            }
+        }
+    }
+
+    private func push(_ msg: SyncMessage, to peerID: String) {
+        netQueue.async {
+            guard self.trustedOrigins.contains(peerID) else { return }
+            self.relay.publish(msg, to: peerID)
+        }
+    }
+
+    /// Announce readiness only after the relay subscription has accepted the
+    /// request. This avoids losing the first state snapshot during pairing or
+    /// process startup.
+    private func announceRelayReadiness(to peerID: String) {
+        guard trustedOrigins.contains(peerID) else { return }
+        DispatchQueue.main.async {
+            guard self.enabled else { return }
+            let viewerActive = self.localViewerActive
+            self.netQueue.async {
+                guard self.trustedOrigins.contains(peerID) else { return }
+                self.push(
+                    SyncMessage(
+                        origin: self.instanceID,
+                        kind: .ready,
+                        sessionActive: viewerActive
+                    ),
+                    to: peerID
+                )
             }
         }
     }
@@ -345,14 +405,66 @@ final class SyncEngine {
                 }
                 self.onStateChange?()
             }
+        case .ready:
+            let remoteViewerActive = msg.sessionActive == true
+            DispatchQueue.main.async {
+                if remoteViewerActive {
+                    self.remoteActive[msg.origin] = Date()
+                } else {
+                    self.remoteActive.removeValue(forKey: msg.origin)
+                }
+
+                let localViewerActive = self.localViewerActive
+                self.onStateChange?()
+                switch SyncHandshakePolicy.response(
+                    enabled: self.enabled,
+                    onlyDuringRemote: self.onlyDuringRemote,
+                    localID: self.instanceID,
+                    localViewerActive: localViewerActive,
+                    remoteID: msg.origin,
+                    remoteViewerActive: remoteViewerActive
+                ) {
+                case .none:
+                    return
+                case .announceReady:
+                    self.push(
+                        SyncMessage(origin: self.instanceID, kind: .ready,
+                                    sessionActive: localViewerActive),
+                        to: msg.origin
+                    )
+                case .sendState:
+                    guard let state = InputSourceManager.current() else { return }
+                    self.sendInitialState(
+                        to: msg.origin,
+                        viewerActive: localViewerActive,
+                        state: state
+                    )
+                }
+            }
         case .pair:
             // 1차 긴급 수정: 페어링 UI/상호 인증이 완성되기 전에는 키를
             // 저장하거나 응답하지 않는다. 명시적 120초 창도 후속 승인 흐름 전용이다.
             return
         case .input:
             guard let sourceID = msg.sourceID else { return }
+            let senderSessionActive = msg.sessionActive
             DispatchQueue.main.async {
-                guard self.syncAllowed else { return }
+                if senderSessionActive == true {
+                    self.remoteActive[msg.origin] = Date()
+                } else if senderSessionActive == false {
+                    self.remoteActive.removeValue(forKey: msg.origin)
+                }
+                let now = Date()
+                let remoteSessionActive = self.remoteActive.values.contains {
+                    now.timeIntervalSince($0) < Self.sessionTTL
+                }
+                guard SyncHandshakePolicy.allowsIncomingInput(
+                    enabled: self.enabled,
+                    onlyDuringRemote: self.onlyDuringRemote,
+                    localViewerActive: self.localViewerActive,
+                    remoteSessionActive: remoteSessionActive,
+                    senderSessionActive: senderSessionActive
+                ) else { return }
                 if let cur = InputSourceManager.current(), cur.id == sourceID { return } // 이미 동일
                 self.suppressUntil = Date().addingTimeInterval(1.0)
                 self.lastKnownID = sourceID
